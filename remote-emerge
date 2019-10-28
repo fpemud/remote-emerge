@@ -155,7 +155,7 @@ def createStunnelProcess(hostname, port):
         waitTcpPort(newPort)
 
         return (cfgFile, newPort, proc)
-    finally:
+    except:
         os.unlink(cfgFile)
 
 
@@ -196,12 +196,12 @@ def syncUp(ip, port):
         os.unlink(stunnelCfgFile)
 
 
-def sshExec(self, ip, port, key, argList):
+def sshExec(ip, port, key, argList):
     identityFile = tempfile.mktemp()
     cfgFile = tempfile.mktemp()
     try:
         with open(identityFile, "w") as f:
-            f.write(self.wSshKey)
+            f.write(key)
         os.chmod(identityFile, 0o600)
 
         buf = ""
@@ -265,7 +265,7 @@ def syncDown(ip, port):
         os.unlink(stunnelCfgFile)
 
 
-def ignoredPatternsWhenSyncUp(self):
+def ignoredPatternsWhenSyncUp():
     return [
         certFile,
         privKeyFile,
@@ -273,7 +273,7 @@ def ignoredPatternsWhenSyncUp(self):
     ]
 
 
-def ignoredPatternsWhenSyncDown(self):
+def ignoredPatternsWhenSyncDown():
     return ignoredPatternsWhenSyncUp() + [
         "/etc/portage/make.conf",
         "/etc/shadow",
@@ -325,6 +325,8 @@ if __name__ == "__main__":
         print(str(resp))
         sys.exit(1)
 
+    print("")
+
     print(">> Sync up.")
 
     sendRequestObj(sslSock, {
@@ -338,6 +340,8 @@ if __name__ == "__main__":
 
     syncUp(dstHostname, resp["return"]["rsync-port"])
 
+    print("")
+
     print(">> Emerging then sync down.")
 
     req = dict()
@@ -349,8 +353,12 @@ if __name__ == "__main__":
         sys.exit(1)
     assert resp["return"]["stage"] == "working"
 
-    sshExec(dstHostname, resp["return"]["ssh-port"], resp["return"]["ssh-key"], sys.argv[2:])
-    syncDown(dstHostname, resp["return"]["rsync-port"])
+    try:
+        sshExec(dstHostname, resp["return"]["ssh-port"], resp["return"]["ssh-key"], sys.argv[2:])
+    finally:
+        syncDown(dstHostname, resp["return"]["rsync-port"])
+
+    print("")
 
     sendRequestObj(sslSock, {
         "command": "quit",
